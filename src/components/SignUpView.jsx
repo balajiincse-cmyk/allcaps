@@ -8,7 +8,9 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const FIELD_SX = { flex: '1 1 240px', minWidth: 0 };
 
 const buildEmptyForm = (email) => ({
-  fullName: '',
+  firstName: '',
+  lastName: '',
+  callingName: '',
   email,
   password: '',
   confirmPassword: '',
@@ -17,14 +19,21 @@ const buildEmptyForm = (email) => ({
   jobTitle: '',
   city: '',
   country: '',
+  bio: '',
 });
 
 function validate(values) {
   const errors = {};
-  if (!values.fullName.trim()) errors.fullName = 'Full name is required.';
+  if (!values.firstName.trim()) errors.firstName = 'First name is required.';
+  if (!values.lastName.trim()) errors.lastName = 'Last name is required.';
   if (!EMAIL_PATTERN.test(values.email.trim())) errors.email = 'Enter a valid email address.';
   if (values.password.length < 8) errors.password = 'Password must be at least 8 characters.';
   if (values.confirmPassword !== values.password) errors.confirmPassword = 'Passwords do not match.';
+  if (!values.phone.trim()) errors.phone = 'Phone is required.';
+  if (!values.organization.trim()) errors.organization = 'Organization is required.';
+  if (!values.jobTitle.trim()) errors.jobTitle = 'Job title is required.';
+  if (!values.city.trim()) errors.city = 'City is required.';
+  if (!values.country.trim()) errors.country = 'Country is required.';
   return errors;
 }
 
@@ -72,7 +81,9 @@ export default function SignUpView({ initialEmail = '', notice, onSignedUp, onSw
         {serverError && <Alert severity="error">{serverError}</Alert>}
 
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2.5 }}>
-          <TextField label="Full name" required {...fieldProps('fullName')} />
+          <TextField label="First name" autoComplete="given-name" required {...fieldProps('firstName')} />
+          <TextField label="Last name" autoComplete="family-name" required {...fieldProps('lastName')} />
+          <TextField label="Calling name" autoComplete="nickname" {...fieldProps('callingName')} />
           <TextField label="Email" type="email" autoComplete="email" required {...fieldProps('email')} />
           <TextField
             label="Password"
@@ -88,11 +99,19 @@ export default function SignUpView({ initialEmail = '', notice, onSignedUp, onSw
             required
             {...fieldProps('confirmPassword')}
           />
-          <TextField label="Phone" autoComplete="tel" {...fieldProps('phone')} />
-          <TextField label="Organization" autoComplete="organization" {...fieldProps('organization')} />
-          <TextField label="Job title" {...fieldProps('jobTitle')} />
-          <TextField label="City" autoComplete="address-level2" {...fieldProps('city')} />
-          <TextField label="Country" autoComplete="country-name" {...fieldProps('country')} />
+          <TextField label="Phone" autoComplete="tel" required {...fieldProps('phone')} />
+          <TextField label="Organization" autoComplete="organization" required {...fieldProps('organization')} />
+          <TextField label="Job title" required {...fieldProps('jobTitle')} />
+          <TextField label="City" autoComplete="address-level2" required {...fieldProps('city')} />
+          <TextField label="Country" autoComplete="country-name" required {...fieldProps('country')} />
+          <TextField
+            label="Bio"
+            multiline
+            minRows={3}
+            placeholder="A few lines about yourself"
+            {...fieldProps('bio')}
+            sx={{ flex: '1 1 100%' }}
+          />
         </Box>
 
         <Button

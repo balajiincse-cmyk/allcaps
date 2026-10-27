@@ -28,10 +28,16 @@ import PageHeader from './PageHeader.jsx';
 import { getStoredToken, updateProfile } from '../api/authApi.js';
 
 const MAX_PHOTO_SIZE = 1.5 * 1024 * 1024;
+const MAX_COVER_SIZE = 2 * 1024 * 1024;
 
 function toProfile(user) {
+  const [fallbackFirst = '', ...fallbackRest] = (user?.fullName ?? '').trim().split(/\s+/);
+  const firstName = user?.firstName || fallbackFirst;
   return {
     fullName: user?.fullName ?? '',
+    firstName,
+    lastName: user?.lastName || fallbackRest.join(' '),
+    callingName: user?.callingName || firstName,
     email: user?.email ?? '',
     phone: user?.phone ?? '',
     whatsapp: user?.whatsapp || user?.phone || '',
@@ -44,6 +50,7 @@ function toProfile(user) {
     linkedin: user?.linkedin ?? '',
     website: user?.website ?? '',
     photo: user?.photo ?? '',
+    coverImage: user?.coverImage ?? '',
   };
 }
 
@@ -117,7 +124,7 @@ export default function ProfileView({ user, onUserUpdated }) {
     setEditing(true);
   };
 
-  const handlePhotoChange = (event) => {
+  const readImage = (event, field, maxSize) => {
     const file = event.target.files?.[0];
     event.target.value = '';
     setPhotoError('');
@@ -126,21 +133,24 @@ export default function ProfileView({ user, onUserUpdated }) {
       setPhotoError('Choose an image file.');
       return;
     }
-    if (file.size > MAX_PHOTO_SIZE) {
-      setPhotoError('Choose an image smaller than 1.5 MB.');
+    if (file.size > maxSize) {
+      setPhotoError(`Choose an image smaller than ${maxSize / 1024 / 1024} MB.`);
       return;
     }
     const reader = new FileReader();
-    reader.onload = () => setDraft((current) => ({ ...current, photo: String(reader.result) }));
+    reader.onload = () => setDraft((current) => ({ ...current, [field]: String(reader.result) }));
     reader.onerror = () => setPhotoError('The image could not be read. Please try another file.');
     reader.readAsDataURL(file);
   };
 
+  const handlePhotoChange = (event) => readImage(event, 'photo', MAX_PHOTO_SIZE);
+  const handleCoverChange = (event) => readImage(event, 'coverImage', MAX_COVER_SIZE);
+
   const handleSave = async (event) => {
     event.preventDefault();
     setSaveError('');
-    if (!draft.fullName.trim()) {
-      setSaveError('Name is required.');
+    if (!draft.firstName.trim() || !draft.lastName.trim()) {
+      setSaveError('First name and last name are required.');
       return;
     }
     if (draft.instagram.trim() && !getInstagramUrl(draft.instagram)) {
@@ -185,9 +195,11 @@ export default function ProfileView({ user, onUserUpdated }) {
           <Box
             sx={{
               height: { xs: 118, sm: 156 },
-              background: 'linear-gradient(120deg, #0f172a 0%, #1d4ed8 58%, #38bdf8 100%)',
+              background: profile.coverImage
+                ? `url("${profile.coverImage}") center / cover no-repeat`
+                : 'linear-gradient(120deg, #0f172a 0%, #1d4ed8 58%, #38bdf8 100%)',
               position: 'relative',
-              '&::after': {
+              '&::after': profile.coverImage ? undefined : {
                 content: '""',
                 position: 'absolute',
                 width: 220,
@@ -220,6 +232,11 @@ export default function ProfileView({ user, onUserUpdated }) {
                 <Typography variant="h4" component="h2" sx={{ fontSize: { xs: '1.65rem', sm: '2rem' } }}>
                   {profile.fullName || 'Your name'}
                 </Typography>
+                {profile.callingName && profile.callingName !== profile.firstName && (
+                  <Typography variant="body2" color="text.secondary">
+                    Call me {profile.callingName}
+                  </Typography>
+                )}
                 <Typography color="text.secondary" sx={{ mt: 0.5 }}>
                   {[profile.jobTitle, profile.organization].filter(Boolean).join(' · ') || 'Add your role and organization'}
                 </Typography>
@@ -288,6 +305,26 @@ export default function ProfileView({ user, onUserUpdated }) {
             <Stack spacing={2.5} sx={{ pt: 1 }}>
               {saveError && <Alert severity="error">{saveError}</Alert>}
               {photoError && <Alert severity="error">{photoError}</Alert>}
+              <Box
+                sx={{
+                  height: 96,
+                  borderRadius: 2,
+                  background: draft.coverImage
+                    ? `url("${draft.coverImage}") center / cover no-repeat`
+                    : 'linear-gradient(120deg, #0f172a 0%, #1d4ed8 58%, #38bdf8 100%)',
+                }}
+              />
+              <Stack direction="row" spacing={2} alignItems="center">
+                <Button component="label" variant="outlined">
+                  Upload cover image
+                  <input hidden type="file" accept="image/*" onChange={handleCoverChange} />
+                </Button>
+                {draft.coverImage && (
+                  <Button color="inherit" onClick={() => setDraft((current) => ({ ...current, coverImage: '' }))}>
+                    Remove
+                  </Button>
+                )}
+              </Stack>
               <Stack direction="row" spacing={2} alignItems="center">
                 <Avatar src={draft.photo || undefined} alt={draft.fullName} sx={{ width: 64, height: 64, bgcolor: 'primary.main' }}>
                   {draft.fullName.trim().charAt(0).toUpperCase()}
@@ -302,13 +339,26 @@ export default function ProfileView({ user, onUserUpdated }) {
                   </Button>
                 )}
               </Stack>
-              <TextField
-                label="Full name"
-                required
-                fullWidth
-                value={draft.fullName}
-                onChange={(event) => setDraft((current) => ({ ...current, fullName: event.target.value }))}
-              />
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
+                <TextField
+                  label="First name"
+                  required
+                  value={draft.firstName}
+                  onChange={(event) => setDraft((current) => ({ ...current, firstName: event.target.value }))}
+                />
+                <TextField
+                  label="Last name"
+                  required
+                  value={draft.lastName}
+                  onChange={(event) => setDraft((current) => ({ ...current, lastName: event.target.value }))}
+                />
+                <TextField
+                  label="Calling name"
+                  helperText="The name you like to be called."
+                  value={draft.callingName}
+                  onChange={(event) => setDraft((current) => ({ ...current, callingName: event.target.value }))}
+                />
+              </Box>
               <TextField
                 label="About"
                 fullWidth
