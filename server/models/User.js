@@ -3,6 +3,9 @@ import mongoose from 'mongoose';
 const userSchema = new mongoose.Schema(
   {
     fullName: { type: String, required: true, trim: true },
+    firstName: { type: String, trim: true, default: '' },
+    lastName: { type: String, trim: true, default: '' },
+    callingName: { type: String, trim: true, default: '' },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     passwordHash: { type: String, required: true, select: false },
     phone: { type: String, trim: true, default: '' },
@@ -16,6 +19,7 @@ const userSchema = new mongoose.Schema(
     linkedin: { type: String, trim: true, default: '' },
     website: { type: String, trim: true, default: '' },
     photo: { type: String, default: '' },
+    coverImage: { type: String, default: '' },
   },
   { timestamps: true }
 );
