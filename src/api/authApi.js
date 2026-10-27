@@ -4,12 +4,12 @@ export const getStoredToken = () => localStorage.getItem(TOKEN_KEY);
 export const storeToken = (token) => localStorage.setItem(TOKEN_KEY, token);
 export const clearStoredToken = () => localStorage.removeItem(TOKEN_KEY);
 
-async function request(path, { method = 'GET', body, token } = {}) {
+async function request(path, { method = 'GET', body, token, base = '/api/auth' } = {}) {
   const headers = {};
   if (body) headers['Content-Type'] = 'application/json';
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const response = await fetch(`/api/auth${path}`, {
+  const response = await fetch(`${base}${path}`, {
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,
@@ -31,6 +31,14 @@ export const signUp = (details) => request('/signup', { method: 'POST', body: de
 export const fetchCurrentUser = (token) => request('/me', { token });
 
 export const updateProfile = (token, details) => request('/me', { method: 'PUT', body: details, token });
+
+export const fetchProjects = (token) => request('', { base: '/api/projects', token });
+export const createProject = (token, details) =>
+  request('', { base: '/api/projects', method: 'POST', body: details, token });
+export const updateProject = (token, id, details) =>
+  request(`/${id}`, { base: '/api/projects', method: 'PUT', body: details, token });
+export const deleteProject = (token, id) =>
+  request(`/${id}`, { base: '/api/projects', method: 'DELETE', token });
 
 async function adminRequest(path, options) {
   const base = '/api/admin';

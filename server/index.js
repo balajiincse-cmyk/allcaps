@@ -7,6 +7,7 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import User from './models/User.js';
+import Project from './models/Project.js';
 
 const { MONGODB_URI, JWT_SECRET, PORT = 5000, ADMIN_EMAILS = 'balajiincse@gmail.com' } = process.env;
 const OWNER_EMAILS = ADMIN_EMAILS.split(',').map((email) => email.trim().toLowerCase()).filter(Boolean);
@@ -306,6 +307,85 @@ app.delete('/api/admin/users/:id', requireAdmin, async (req, res) => {
   } catch (error) {
     console.error(error);
     sendError(res, 500, 'SERVER_ERROR', 'Could not delete user.');
+  }
+});
+
+app.get('/api/projects', requireAuth, async (req, res) => {
+  try {
+    if (!await User.exists({ _id: req.userId })) {
+      return sendError(res, 401, 'UNAUTHORIZED', 'Profile no longer exists.');
+    }
+    const projects = await Project.find().sort({ createdAt: 1 });
+    res.json({ projects });
+  } catch (error) {
+    console.error(error);
+    sendError(res, 500, 'SERVER_ERROR', 'Could not load projects.');
+  }
+});
+
+const validateProject = (req, res, next) => {
+    const { title, description, features, images = [] } = req.body ?? {};
+    if (typeof title !== 'string' || !title.trim() || title.trim().length > 200) {
+      return sendError(res, 400, 'INVALID_INPUT', 'Project title is required and must be at most 200 characters.');
+    }
+    if (typeof description !== 'string' || !description.trim() || description.trim().length > 10000) {
+      return sendError(res, 400, 'INVALID_INPUT', 'Project description is required and must be at most 10,000 characters.');
+    }
+    if (!Array.isArray(features) || !features.length || features.length > 50 ||
+      features.some((feature) => typeof feature !== 'string' || !feature.trim() || feature.trim().length > 500)) {
+      return sendError(res, 400, 'INVALID_INPUT', 'Provide 1 to 50 features, at most 500 characters each.');
+    }
+    if (!Array.isArray(images) || images.length > 4 || images.some((image) =>
+      typeof image !== 'string' || !/^data:image\/(png|jpeg|gif|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(image) ||
+      Buffer.byteLength(image.split(',')[1], 'base64') > 1024 * 1024)) {
+      return sendError(res, 400, 'INVALID_INPUT', 'Upload up to 4 PNG, JPG, GIF, or WebP images, at most 1 MB each.');
+    }
+    req.projectDetails = {
+      title: title.trim(),
+      description: description.trim(),
+      features: features.map((feature) => feature.trim()),
+      images,
+    };
+    next();
+};
+
+app.post('/api/projects', requireAdmin, validateProject, async (req, res) => {
+  try {
+    const project = await Project.create({ ...req.projectDetails, createdBy: req.userId });
+    res.status(201).json({ project });
+  } catch (error) {
+    console.error(error);
+    sendError(res, 500, 'SERVER_ERROR', 'Could not create project.');
+  }
+});
+
+app.put('/api/projects/:id', requireAdmin, validateProject, async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return sendError(res, 400, 'INVALID_INPUT', 'Invalid project id.');
+    }
+    const project = await Project.findByIdAndUpdate(req.params.id, req.projectDetails, {
+      new: true, runValidators: true,
+    });
+    if (!project) return sendError(res, 404, 'NOT_FOUND', 'Project not found.');
+    res.json({ project });
+  } catch (error) {
+    console.error(error);
+    sendError(res, 500, 'SERVER_ERROR', 'Could not update project.');
+  }
+});
+
+app.delete('/api/projects/:id', requireAdmin, async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return sendError(res, 400, 'INVALID_INPUT', 'Invalid project id.');
+    }
+    const project = await Project.findByIdAndDelete(req.params.id);
+    if (!project) return sendError(res, 404, 'NOT_FOUND', 'Project not found.');
+    res.json({ ok: true });
+  } catch (error) {
+    console.error(error);
+    sendError(res, 500, 'SERVER_ERROR', 'Could not delete project.');
   }
 });
 
