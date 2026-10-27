@@ -6,17 +6,21 @@ import {
   Button,
   Card,
   CardContent,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   Divider,
+  IconButton,
   Link,
   Stack,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import PhotoCameraOutlinedIcon from '@mui/icons-material/PhotoCameraOutlined';
 import InstagramIcon from '@mui/icons-material/Instagram';
 import LanguageIcon from '@mui/icons-material/Language';
 import LinkedInIcon from '@mui/icons-material/LinkedIn';
@@ -104,6 +108,8 @@ export default function ProfileView({ user, onUserUpdated }) {
   const [saving, setSaving] = useState(false);
   const [photoError, setPhotoError] = useState('');
   const [saveError, setSaveError] = useState('');
+  const [photoSaving, setPhotoSaving] = useState(false);
+  const [quickPhotoError, setQuickPhotoError] = useState('');
 
   const location = [profile.city, profile.country].filter(Boolean).join(', ');
   const whatsappNumber = profile.whatsapp.replace(/\D/g, '');
@@ -145,6 +151,38 @@ export default function ProfileView({ user, onUserUpdated }) {
 
   const handlePhotoChange = (event) => readImage(event, 'photo', MAX_PHOTO_SIZE);
   const handleCoverChange = (event) => readImage(event, 'coverImage', MAX_COVER_SIZE);
+
+  const savePhoto = async (photo) => {
+    setQuickPhotoError('');
+    setPhotoSaving(true);
+    try {
+      const { user: savedUser } = await updateProfile(getStoredToken(), { ...profile, photo });
+      onUserUpdated(savedUser);
+    } catch (error) {
+      setQuickPhotoError(error.message);
+    } finally {
+      setPhotoSaving(false);
+    }
+  };
+
+  const handleQuickPhoto = (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    setQuickPhotoError('');
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setQuickPhotoError('Choose an image file.');
+      return;
+    }
+    if (file.size > MAX_PHOTO_SIZE) {
+      setQuickPhotoError('Choose an image smaller than 1.5 MB.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => savePhoto(String(reader.result));
+    reader.onerror = () => setQuickPhotoError('The image could not be read. Please try another file.');
+    reader.readAsDataURL(file);
+  };
 
   const handleSave = async (event) => {
     event.preventDefault();
@@ -190,6 +228,12 @@ export default function ProfileView({ user, onUserUpdated }) {
         }
       />
 
+      {quickPhotoError && (
+        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setQuickPhotoError('')}>
+          {quickPhotoError}
+        </Alert>
+      )}
+
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1.55fr) minmax(280px, 0.9fr)' }, gap: 3 }}>
         <Card sx={{ overflow: 'hidden' }}>
           <Box
@@ -213,21 +257,44 @@ export default function ProfileView({ user, onUserUpdated }) {
           />
           <CardContent sx={{ px: { xs: 2.5, sm: 4 }, pb: 4, mt: -6, position: 'relative' }}>
             <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'flex-start', sm: 'flex-end' }} spacing={2.5}>
-              <Avatar
-                src={profile.photo || undefined}
-                alt={profile.fullName}
-                sx={{
-                  width: 112,
-                  height: 112,
-                  border: '4px solid white',
-                  bgcolor: 'primary.main',
-                  fontSize: 38,
-                  fontWeight: 700,
-                  boxShadow: '0 5px 18px rgba(15, 23, 42, 0.16)',
-                }}
-              >
-                {profile.fullName.trim().charAt(0).toUpperCase()}
-              </Avatar>
+              <Box sx={{ position: 'relative', flexShrink: 0 }}>
+                <Avatar
+                  src={profile.photo || undefined}
+                  alt={profile.fullName}
+                  sx={{
+                    width: 112,
+                    height: 112,
+                    border: '4px solid white',
+                    bgcolor: 'primary.main',
+                    fontSize: 38,
+                    fontWeight: 700,
+                    boxShadow: '0 5px 18px rgba(15, 23, 42, 0.16)',
+                  }}
+                >
+                  {profile.fullName.trim().charAt(0).toUpperCase()}
+                </Avatar>
+                <Tooltip title={profile.photo ? 'Change profile photo' : 'Add profile photo'}>
+                  <IconButton
+                    component="label"
+                    disabled={photoSaving}
+                    aria-label="Upload profile photo"
+                    sx={{
+                      position: 'absolute',
+                      right: -4,
+                      bottom: -4,
+                      width: 36,
+                      height: 36,
+                      bgcolor: 'primary.main',
+                      color: 'white',
+                      border: '3px solid white',
+                      '&:hover': { bgcolor: 'primary.dark' },
+                    }}
+                  >
+                    {photoSaving ? <CircularProgress size={16} color="inherit" /> : <PhotoCameraOutlinedIcon fontSize="small" />}
+                    <input hidden type="file" accept="image/*" onChange={handleQuickPhoto} />
+                  </IconButton>
+                </Tooltip>
+              </Box>
               <Box sx={{ pb: 1, minWidth: 0 }}>
                 <Typography variant="h4" component="h2" sx={{ fontSize: { xs: '1.65rem', sm: '2rem' } }}>
                   {profile.fullName || 'Your name'}

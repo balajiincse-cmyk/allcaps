@@ -8,6 +8,7 @@ import ProjectsView from './components/ProjectsView.jsx';
 import StudiesView from './components/StudiesView.jsx';
 import ContactView from './components/ContactView.jsx';
 import ProfileView from './components/ProfileView.jsx';
+import AdminUsersView from './components/AdminUsersView.jsx';
 import SignInView from './components/SignInView.jsx';
 import SignUpView from './components/SignUpView.jsx';
 import { NAV_ITEMS } from './data/navigation.js';
@@ -19,6 +20,7 @@ const VIEWS = {
   studies: StudiesView,
   contact: ContactView,
   profile: ProfileView,
+  admin: AdminUsersView,
 };
 
 export default function App() {
@@ -103,8 +105,9 @@ function Dashboard({ user, onSignOut, onUserUpdated }) {
   const [activeKey, setActiveKey] = useState('home');
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const ActiveView = VIEWS[activeKey];
-  const activeLabel = NAV_ITEMS.find((item) => item.key === activeKey)?.label;
+  const navItems = NAV_ITEMS.filter((item) => !item.adminOnly || user.role === 'admin');
+  const ActiveView = navItems.some((item) => item.key === activeKey) ? VIEWS[activeKey] : VIEWS.profile;
+  const activeLabel = navItems.find((item) => item.key === activeKey)?.label;
 
   const handleNavigate = (key) => {
     setActiveKey(key);
@@ -115,7 +118,7 @@ function Dashboard({ user, onSignOut, onUserUpdated }) {
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
       <Sidebar
-        items={NAV_ITEMS}
+        items={navItems}
         activeKey={activeKey}
         onNavigate={handleNavigate}
         variant={isDesktop ? 'permanent' : 'temporary'}
